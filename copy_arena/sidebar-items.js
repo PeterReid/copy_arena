@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Allocator","Allows allocation out of arena."],["Arena","Holds the backing memory for allocated objects out of itself."]]});
