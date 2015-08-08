@@ -1,3 +1,27 @@
+//! A memory allocation arena specialized for types implement Copy.
+//!
+//! An `Arena` can allocate objects more efficiently than a
+//! general-purpose allocator, but the objects cannot be
+//! deallocated until the `Arena` itself is destroyed.
+//!
+//! To actually allocate out of an `Arena` after creating it,
+//! use its `allocator()` method to create an `Allocator`.
+//!
+//! # Examples
+//!
+//! ```
+//! use copy_arena::Arena;
+//!
+//! let mut arena = Arena::new();
+//! let mut allocator = arena.allocator();
+//!
+//! let a: &mut i32 = allocator.alloc(5);
+//! let b: &mut f64 = allocator.alloc_default();
+//! let c: &mut [u8] = allocator.alloc_slice(b"some text");
+//! let b: &mut [usize] = allocator.alloc_slice_fn(10, |idx| idx + 1);
+//! let e: &mut [u32] = allocator.alloc_slice_default(10);
+//! ```
+
 use std::mem;
 use std::cmp;
 use std::usize;
@@ -25,15 +49,23 @@ impl Chunk {
     }
 }
 
+/// Holds the backing memory for allocated objects out of itself.
+///
+/// Actual allocation into the `Arena` happens via an `Allocator` returned
+/// from `allocator()`.
 pub struct Arena {
     head: Chunk,
 }
 
 impl Arena {
+    /// Construct a new Arena. This _does_ allocate an block of memory.
     pub fn new() -> Arena {
         Arena::with_capacity(1000)
     }
 
+    /// Construct a new Arena with the given initial capacity.
+    ///
+    /// The chosen capacity does not limit the final size of the arena.
     pub fn with_capacity(capacity: usize) -> Arena {
         Arena {
             head: Chunk{
@@ -53,12 +85,17 @@ impl Arena {
         self.head.next = Some(Box::new(new_head));
     }
 
+    /// Construct an Allocator for this arena.
     pub fn allocator(&mut self) -> Allocator {
         Allocator {
             arena: self
         }
     }
 
+    /// Get the number of bytes of memory that have been allocated
+    /// in service of this arena. Not all of this capacity is necessarily
+    /// useful, since asked-for memory may not perfectly fit in the
+    /// underlying blocks allocated.
     pub fn capacity(&self) -> usize {
         let mut iter: &Chunk = &self.head;
         let mut total_capacity = 0;
@@ -78,6 +115,7 @@ impl fmt::Debug for Arena {
     }
 }
 
+/// Allows allocation out of arena.
 #[derive(Debug)]
 pub struct Allocator<'a> {
     arena: &'a mut Arena,
@@ -103,6 +141,7 @@ impl<'a> Allocator<'a> {
         }
     }
 
+    /// Allocate a copy of an object
     pub fn alloc<T: Copy>(&mut self, elem: T) -> &'a mut T {
         let memory = self.alloc_raw(mem::size_of::<T>(), mem::min_align_of::<T>());
         let res: &'a mut T = unsafe { mem::transmute(memory) };
@@ -110,10 +149,12 @@ impl<'a> Allocator<'a> {
         res
     }
 
+    /// Allocate a default-valued object
     pub fn alloc_default<T: Copy+Default>(&mut self) -> &'a mut T {
         self.alloc(Default::default())
     }
 
+    /// Allocate and leave uninitialized a slice of the given length
     fn alloc_slice_raw<T>(&mut self, len: usize) -> &'a mut [T] {
         let element_size = cmp::max(mem::size_of::<T>(), mem::min_align_of::<T>());
         assert_eq!(mem::size_of::<[T;7]>(), 7 * element_size);
@@ -123,6 +164,7 @@ impl<'a> Allocator<'a> {
         res
     }
 
+    /// Allocate a copy of a slice
     pub fn alloc_slice<T: Copy>(&mut self, elems: &[T]) -> &'a mut [T] {
         let mut slice = self.alloc_slice_raw(elems.len());
         for (dest, src) in slice.iter_mut().zip(elems.iter()) {
@@ -131,6 +173,8 @@ impl<'a> Allocator<'a> {
         slice
     }
 
+    /// Allocate and populate a slice, creating each element as a function
+    /// of its index.
     pub fn alloc_slice_fn<T: Copy, F>(&mut self, len: usize, mut f: F)-> &'a mut [T]
         where F: FnMut(usize) -> T
     {
@@ -141,6 +185,7 @@ impl<'a> Allocator<'a> {
         slice
     }
 
+    /// Allocate a slice populated by default-valued elements.
     pub fn alloc_slice_default<T: Copy+Default>(&mut self, len: usize)-> &'a mut [T] {
         self.alloc_slice_fn(len, |_| Default::default())
     }
