@@ -208,6 +208,66 @@ fn construct_simple() {
 }
 
 #[test]
+fn just_enough_capacity() {
+    let mut arena = Arena::with_capacity(7);
+    arena.allocator().alloc_slice_default::<u8>(7);
+
+    assert!(arena.head.next.is_none());
+    assert_eq!(arena.head.data.len(), 7);
+}
+
+#[test]
+fn barely_too_little_capacity() {
+    let mut arena = Arena::with_capacity(7);
+    arena.allocator().alloc_slice_default::<u8>(8);
+
+    assert!(arena.head.next.is_some());
+    assert_eq!(arena.head.data.len(), 8);
+}
+
+#[test]
+fn many_u8s() {
+    let mut arena = Arena::with_capacity(52);
+    for i in 0..100 {
+        assert_eq!(*arena.allocator().alloc(4), 4u8);
+        assert_eq!(arena.head.data.len(), (i % 52) + 1);
+    }
+    assert!(arena.head.data.capacity() > 52);
+}
+
+
+#[test]
+fn zero_capacity() {
+    let mut arena = Arena::with_capacity(0);
+    assert_eq!(arena.head.data.capacity(), 0);
+
+    assert_eq!(*arena.allocator().alloc(9u32), 9u32);
+
+    assert!(arena.head.data.capacity()>=4);
+    assert!(arena.head.data.len()==4);
+}
+
+#[test]
+fn surprisingly_large() {
+    // Make sure asking for an allocation that is larger than the
+    // block we otherwise would have allocated works fine.
+    let mut arena = Arena::with_capacity(10);
+
+    {
+        let mut allocator = arena.allocator();
+        let x = allocator.alloc(7u32);
+        let ys : &[u8] = allocator.alloc_slice_default(600);
+
+        assert_eq!(*x, 7u32);
+        assert_eq!(ys.len(), 600);
+    }
+
+    assert!(arena.head.next.is_some());
+    assert!(arena.head.data.capacity() >= 600);
+    assert_eq!(arena.head.data.len(), 600);
+}
+
+#[test]
 fn construct_slices() {
     let mut arena = Arena::with_capacity(4);
     let mut allocator = arena.allocator();
