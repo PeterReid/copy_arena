@@ -322,6 +322,73 @@
 <span id="280">280</span>
 <span id="281">281</span>
 <span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
 </pre><pre class='rust '>
 <span class='doccomment'>//! A memory allocation arena specialized for types implement Copy.</span>
 <span class='doccomment'>//!</span>
@@ -334,6 +401,8 @@
 <span class='doccomment'>//!</span>
 <span class='doccomment'>//! # Examples</span>
 <span class='doccomment'>//!</span>
+<span class='doccomment'>//! Basic usage works as follows:</span>
+<span class='doccomment'>//!</span>
 <span class='doccomment'>//! ```</span>
 <span class='doccomment'>//! use copy_arena::Arena;</span>
 <span class='doccomment'>//!</span>
@@ -345,6 +414,38 @@
 <span class='doccomment'>//! let c: &amp;mut [u8] = allocator.alloc_slice(b&quot;some text&quot;);</span>
 <span class='doccomment'>//! let b: &amp;mut [usize] = allocator.alloc_slice_fn(10, |idx| idx + 1);</span>
 <span class='doccomment'>//! let e: &amp;mut [u32] = allocator.alloc_slice_default(10);</span>
+<span class='doccomment'>//! ```</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! A slightly more realistic use case would be to create a tree without</span>
+<span class='doccomment'>//! allocating from the heap for each node.</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! ```</span>
+<span class='doccomment'>//! use copy_arena::{Arena, Allocator};</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! #[derive(Copy, Clone)]</span>
+<span class='doccomment'>//! struct Tree&lt;&#39;a&gt; {</span>
+<span class='doccomment'>//!     left: Option&lt;&amp;&#39;a Tree&lt;&#39;a&gt;&gt;,</span>
+<span class='doccomment'>//!     right: Option&lt;&amp;&#39;a Tree&lt;&#39;a&gt;&gt;,</span>
+<span class='doccomment'>//!     content: u32</span>
+<span class='doccomment'>//! }</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! fn build_little_tree&lt;&#39;a&gt;(allocator: &amp;mut Allocator&lt;&#39;a&gt;) -&gt; &amp;&#39;a Tree&lt;&#39;a&gt; {</span>
+<span class='doccomment'>//!     let left = allocator.alloc(Tree { left: None, right: None, content: 8 });</span>
+<span class='doccomment'>//!     let right = allocator.alloc(Tree { left: None, right: None, content: 16 });</span>
+<span class='doccomment'>//!     let parent = allocator.alloc(Tree { left: Some(left), right: Some(right), content: 13 });</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//!     parent</span>
+<span class='doccomment'>//! }</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! </span>
+<span class='doccomment'>//! let mut arena = Arena::new();</span>
+<span class='doccomment'>//! let mut allocator = arena.allocator();</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! let root = build_little_tree(&amp;mut allocator);</span>
+<span class='doccomment'>//! assert_eq!(root.content, 13);</span>
+<span class='doccomment'>//! assert_eq!(root.left.unwrap().content, 8);</span>
+<span class='doccomment'>//! assert_eq!(root.right.unwrap().content, 16);</span>
+<span class='doccomment'>//! </span>
 <span class='doccomment'>//! ```</span>
 
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>mem</span>;
@@ -605,6 +706,39 @@
     <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>s</span>, <span class='string'>&quot;abc&quot;</span>);
     <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>ys</span>[<span class='number'>0</span>], <span class='number'>0</span>);
 }
+
+<span class='attribute'>#[<span class='ident'>cfg</span>(<span class='ident'>test</span>)]</span>
+<span class='kw'>mod</span> <span class='ident'>tree</span> {
+    <span class='kw'>use</span> <span class='ident'>super</span>::{<span class='ident'>Arena</span>, <span class='ident'>Allocator</span>};
+
+    <span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Copy</span>, <span class='ident'>Clone</span>)]</span>
+    <span class='kw'>struct</span> <span class='ident'>Tree</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span><span class='op'>&gt;</span> {
+        <span class='ident'>left</span>: <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='kw-2'>&amp;</span><span class='lifetime'>&#39;a</span> <span class='ident'>Tree</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span><span class='op'>&gt;&gt;</span>,
+        <span class='ident'>right</span>: <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='kw-2'>&amp;</span><span class='lifetime'>&#39;a</span> <span class='ident'>Tree</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span><span class='op'>&gt;&gt;</span>,
+        <span class='ident'>content</span>: <span class='ident'>u32</span>
+    }
+
+    <span class='kw'>fn</span> <span class='ident'>build_little_tree</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span><span class='op'>&gt;</span>(<span class='ident'>allocator</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>Allocator</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='kw-2'>&amp;</span><span class='lifetime'>&#39;a</span> <span class='ident'>Tree</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span><span class='op'>&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>left</span> <span class='op'>=</span> <span class='ident'>allocator</span>.<span class='ident'>alloc</span>(<span class='ident'>Tree</span> { <span class='ident'>left</span>: <span class='prelude-val'>None</span>, <span class='ident'>right</span>: <span class='prelude-val'>None</span>, <span class='ident'>content</span>: <span class='number'>8</span> });
+        <span class='kw'>let</span> <span class='ident'>right</span> <span class='op'>=</span> <span class='ident'>allocator</span>.<span class='ident'>alloc</span>(<span class='ident'>Tree</span> { <span class='ident'>left</span>: <span class='prelude-val'>None</span>, <span class='ident'>right</span>: <span class='prelude-val'>None</span>, <span class='ident'>content</span>: <span class='number'>16</span> });
+        <span class='kw'>let</span> <span class='ident'>parent</span> <span class='op'>=</span> <span class='ident'>allocator</span>.<span class='ident'>alloc</span>(<span class='ident'>Tree</span> { <span class='ident'>left</span>: <span class='prelude-val'>Some</span>(<span class='ident'>left</span>), <span class='ident'>right</span>: <span class='prelude-val'>Some</span>(<span class='ident'>right</span>), <span class='ident'>content</span>: <span class='number'>13</span> });
+
+        <span class='ident'>parent</span>
+    }
+
+    <span class='attribute'>#[<span class='ident'>test</span>]</span>
+    <span class='kw'>fn</span> <span class='ident'>make_tree</span>() {
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>arena</span> <span class='op'>=</span> <span class='ident'>Arena</span>::<span class='ident'>new</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>allocator</span> <span class='op'>=</span> <span class='ident'>arena</span>.<span class='ident'>allocator</span>();
+
+        <span class='kw'>let</span> <span class='ident'>root</span> <span class='op'>=</span> <span class='ident'>build_little_tree</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>allocator</span>);
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>root</span>.<span class='ident'>content</span>, <span class='number'>13</span>);
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>root</span>.<span class='ident'>left</span>.<span class='ident'>unwrap</span>().<span class='ident'>content</span>, <span class='number'>8</span>);
+        <span class='macro'>assert_eq</span><span class='macro'>!</span>(<span class='ident'>root</span>.<span class='ident'>right</span>.<span class='ident'>unwrap</span>().<span class='ident'>content</span>, <span class='number'>16</span>);
+    }
+
+}
+
 </pre>
 </section>
     <section id='search' class="content hidden"></section>
