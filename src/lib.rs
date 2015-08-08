@@ -314,36 +314,3 @@ fn construct_slices() {
     assert_eq!(s, "abc");
     assert_eq!(ys[0], 0);
 }
-
-#[cfg(test)]
-mod tree {
-    use super::{Arena, Allocator};
-
-    #[derive(Copy, Clone)]
-    struct Tree<'a> {
-        left: Option<&'a Tree<'a>>,
-        right: Option<&'a Tree<'a>>,
-        content: u32
-    }
-
-    fn build_little_tree<'a>(allocator: &mut Allocator<'a>) -> &'a Tree<'a> {
-        let left = allocator.alloc(Tree { left: None, right: None, content: 8 });
-        let right = allocator.alloc(Tree { left: None, right: None, content: 16 });
-        let parent = allocator.alloc(Tree { left: Some(left), right: Some(right), content: 13 });
-
-        parent
-    }
-
-    #[test]
-    fn make_tree() {
-        let mut arena = Arena::new();
-        let mut allocator = arena.allocator();
-
-        let root = build_little_tree(&mut allocator);
-        assert_eq!(root.content, 13);
-        assert_eq!(root.left.unwrap().content, 8);
-        assert_eq!(root.right.unwrap().content, 16);
-    }
-
-}
-
