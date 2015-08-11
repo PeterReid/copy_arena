@@ -190,7 +190,7 @@ impl<'a> Allocator<'a> {
 
     /// Allocate and leave uninitialized a slice of the given length
     fn alloc_slice_raw<T>(&mut self, len: usize) -> &'a mut [T] {
-        let element_size = cmp::max(mem::size_of::<T>(), mem::min_align_of::<T>());
+        let element_size = mem::size_of::<[T;2]>() / 2;
         assert_eq!(mem::size_of::<[T;7]>(), 7 * element_size);
         let byte_count = element_size.checked_mul(len).expect("Arena slice size overflow");
         let memory = self.alloc_raw(byte_count, mem::min_align_of::<T>());
@@ -313,4 +313,24 @@ fn construct_slices() {
     assert_eq!(xs[9], 9*7);
     assert_eq!(s, "abc");
     assert_eq!(ys[0], 0);
+}
+
+#[test]
+fn zero_size() {
+    let mut arena = Arena::with_capacity(4);
+    {
+        let mut allocator = arena.allocator();
+
+        let many_units = allocator.alloc_slice_fn(500, |_| () );
+        assert_eq!(many_units.len(), 500);
+    }
+    assert_eq!(arena.capacity(), 4);
+
+    {
+        let mut allocator = arena.allocator();
+
+        let many_units: Vec<&mut ()> = (0..500).map(|_| allocator.alloc(())).collect();
+        assert_eq!(many_units.len(), 500);
+    }
+    assert_eq!(arena.capacity(), 4);
 }
