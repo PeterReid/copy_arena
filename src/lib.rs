@@ -81,6 +81,11 @@ impl Chunk {
             None
         }
     }
+
+    fn clear(&mut self) {
+        unsafe { self.data.set_len(0); }
+        self.next = None;
+    }
 }
 
 /// Holds the backing memory for allocated objects out of itself.
@@ -107,6 +112,15 @@ impl Arena {
                 next: None,
             }
         }
+    }
+
+    /// Construct a new Arena and take memory from given Arena.
+    /// 
+    /// All previously allocated references are invalidated.
+    pub fn with_memory_from(source: Arena) -> Arena {
+        let mut head = source.head;
+        head.clear();
+        Arena { head: head }
     }
 
     fn add_chunk(&mut self, chunk_size: usize) {
@@ -177,7 +191,7 @@ impl<'a> Allocator<'a> {
 
     /// Allocate a copy of an object
     pub fn alloc<T: Copy>(&mut self, elem: T) -> &'a mut T {
-        let memory = self.alloc_raw(mem::size_of::<T>(), mem::min_align_of::<T>());
+        let memory = self.alloc_raw(mem::size_of::<T>(), mem::align_of::<T>());
         let res: &'a mut T = unsafe { mem::transmute(memory) };
         *res = elem;
         res
@@ -193,14 +207,14 @@ impl<'a> Allocator<'a> {
         let element_size = mem::size_of::<[T;2]>() / 2;
         assert_eq!(mem::size_of::<[T;7]>(), 7 * element_size);
         let byte_count = element_size.checked_mul(len).expect("Arena slice size overflow");
-        let memory = self.alloc_raw(byte_count, mem::min_align_of::<T>());
+        let memory = self.alloc_raw(byte_count, mem::align_of::<T>());
         let res: &'a mut [T] = unsafe { slice::from_raw_parts_mut( mem::transmute(memory), len) };
         res
     }
 
     /// Allocate a copy of a slice
     pub fn alloc_slice<T: Copy>(&mut self, elems: &[T]) -> &'a mut [T] {
-        let mut slice = self.alloc_slice_raw(elems.len());
+        let slice = self.alloc_slice_raw(elems.len());
         for (dest, src) in slice.iter_mut().zip(elems.iter()) {
             *dest = *src;
         }
@@ -212,7 +226,7 @@ impl<'a> Allocator<'a> {
     pub fn alloc_slice_fn<T: Copy, F>(&mut self, len: usize, mut f: F)-> &'a mut [T]
         where F: FnMut(usize) -> T
     {
-        let mut slice = self.alloc_slice_raw(len);
+        let slice = self.alloc_slice_raw(len);
         for (idx, dest) in slice.iter_mut().enumerate() {
             *dest = f(idx)
         }
@@ -222,6 +236,11 @@ impl<'a> Allocator<'a> {
     /// Allocate a slice populated by default-valued elements.
     pub fn alloc_slice_default<T: Copy+Default>(&mut self, len: usize)-> &'a mut [T] {
         self.alloc_slice_fn(len, |_| Default::default())
+    }
+
+    /// Allocate and populate a str slice.
+    pub fn alloc_str(&mut self, elem: &str) -> &'a mut str {
+        unsafe { ::std::str::from_utf8_unchecked_mut(self.alloc_slice(elem.as_bytes())) }
     }
 }
 
@@ -306,7 +325,7 @@ fn construct_slices() {
     let mut arena = Arena::with_capacity(4);
     let mut allocator = arena.allocator();
 
-    let s = ::std::str::from_utf8(allocator.alloc_slice(b"abc")).unwrap();
+    let s = allocator.alloc_str("abc");
     let xs: &[i32] = allocator.alloc_slice_fn(10, |idx| (idx as i32)*7);
     let ys: &[u64] = allocator.alloc_slice_default(4);
 
@@ -333,4 +352,19 @@ fn zero_size() {
         assert_eq!(many_units.len(), 500);
     }
     assert_eq!(arena.capacity(), 4);
+}
+
+#[test]
+fn reuse_memory() {
+    let mut arena = Arena::with_capacity(4);
+    let mut allocator = arena.allocator();
+    let _x1: &mut i32 = allocator.alloc(44);
+
+    arena = Arena::with_memory_from(arena);
+    let mut allocator = arena.allocator();
+    let _x2: &mut i32 = allocator.alloc(42);
+
+    assert_eq!(arena.capacity(), 4);
+
+    // using _x1 here leads to an compiler error
 }
