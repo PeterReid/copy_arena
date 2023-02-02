@@ -81,6 +81,11 @@ impl Chunk {
             None
         }
     }
+
+    fn clear(&mut self) {
+        unsafe { self.data.set_len(0); }
+        self.next = None;
+    }
 }
 
 /// Holds the backing memory for allocated objects out of itself.
@@ -107,6 +112,15 @@ impl Arena {
                 next: None,
             }
         }
+    }
+
+    /// Construct a new Arena and take memory from given Arena.
+    /// 
+    /// All previously allocated references are invalidated.
+    pub fn with_memory_from(source: Arena) -> Arena {
+        let mut head = source.head;
+        head.clear();
+        Arena { head: head }
     }
 
     fn add_chunk(&mut self, chunk_size: usize) {
@@ -333,4 +347,19 @@ fn zero_size() {
         assert_eq!(many_units.len(), 500);
     }
     assert_eq!(arena.capacity(), 4);
+}
+
+#[test]
+fn reuse_memory() {
+    let mut arena = Arena::with_capacity(4);
+    let mut allocator = arena.allocator();
+    let _x1: &mut i32 = allocator.alloc(44);
+
+    arena = Arena::with_memory_from(arena);
+    let mut allocator = arena.allocator();
+    let _x2: &mut i32 = allocator.alloc(42);
+
+    assert_eq!(arena.capacity(), 4);
+
+    // using _x1 here leads to an compiler error
 }
