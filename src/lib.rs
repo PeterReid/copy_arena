@@ -237,6 +237,11 @@ impl<'a> Allocator<'a> {
     pub fn alloc_slice_default<T: Copy+Default>(&mut self, len: usize)-> &'a mut [T] {
         self.alloc_slice_fn(len, |_| Default::default())
     }
+
+    /// Allocate and populate a str slice.
+    pub fn alloc_str(&mut self, elem: &str) -> &'a mut str {
+        unsafe { ::std::str::from_utf8_unchecked_mut(self.alloc_slice(elem.as_bytes())) }
+    }
 }
 
 
@@ -320,7 +325,7 @@ fn construct_slices() {
     let mut arena = Arena::with_capacity(4);
     let mut allocator = arena.allocator();
 
-    let s = ::std::str::from_utf8(allocator.alloc_slice(b"abc")).unwrap();
+    let s = allocator.alloc_str("abc");
     let xs: &[i32] = allocator.alloc_slice_fn(10, |idx| (idx as i32)*7);
     let ys: &[u64] = allocator.alloc_slice_default(4);
 
