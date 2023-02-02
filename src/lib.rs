@@ -191,7 +191,7 @@ impl<'a> Allocator<'a> {
 
     /// Allocate a copy of an object
     pub fn alloc<T: Copy>(&mut self, elem: T) -> &'a mut T {
-        let memory = self.alloc_raw(mem::size_of::<T>(), mem::min_align_of::<T>());
+        let memory = self.alloc_raw(mem::size_of::<T>(), mem::align_of::<T>());
         let res: &'a mut T = unsafe { mem::transmute(memory) };
         *res = elem;
         res
@@ -207,14 +207,14 @@ impl<'a> Allocator<'a> {
         let element_size = mem::size_of::<[T;2]>() / 2;
         assert_eq!(mem::size_of::<[T;7]>(), 7 * element_size);
         let byte_count = element_size.checked_mul(len).expect("Arena slice size overflow");
-        let memory = self.alloc_raw(byte_count, mem::min_align_of::<T>());
+        let memory = self.alloc_raw(byte_count, mem::align_of::<T>());
         let res: &'a mut [T] = unsafe { slice::from_raw_parts_mut( mem::transmute(memory), len) };
         res
     }
 
     /// Allocate a copy of a slice
     pub fn alloc_slice<T: Copy>(&mut self, elems: &[T]) -> &'a mut [T] {
-        let mut slice = self.alloc_slice_raw(elems.len());
+        let slice = self.alloc_slice_raw(elems.len());
         for (dest, src) in slice.iter_mut().zip(elems.iter()) {
             *dest = *src;
         }
@@ -226,7 +226,7 @@ impl<'a> Allocator<'a> {
     pub fn alloc_slice_fn<T: Copy, F>(&mut self, len: usize, mut f: F)-> &'a mut [T]
         where F: FnMut(usize) -> T
     {
-        let mut slice = self.alloc_slice_raw(len);
+        let slice = self.alloc_slice_raw(len);
         for (idx, dest) in slice.iter_mut().enumerate() {
             *dest = f(idx)
         }
